@@ -19,7 +19,7 @@ use crate::{
     block::Network,
     errors::DPCError,
     testnet1::{payload::Payload, AleoAmount},
-    traits::{AccountScheme, DPCComponents, DPCScheme, LedgerScheme, RecordScheme, TransactionScheme},
+    traits::{AccountScheme, DPCComponents, DPCScheme, LedgerScheme, RecordScheme},
 };
 use snarkvm_algorithms::{
     commitment_tree::CommitmentMerkleTree,
@@ -40,13 +40,7 @@ use snarkvm_gadgets::{
     bits::Boolean,
     traits::algorithms::{CRHGadget, SNARKVerifierGadget},
 };
-use snarkvm_utilities::{
-    bytes::{FromBytes, ToBytes},
-    has_duplicates,
-    rand::UniformRand,
-    to_bytes,
-    variable_length_integer::*,
-};
+use snarkvm_utilities::{CanonicalDeserialize, bytes::{FromBytes, ToBytes}, has_duplicates, rand::UniformRand, to_bytes, variable_length_integer::*};
 
 use itertools::{izip, Itertools};
 use rand::Rng;
@@ -152,7 +146,7 @@ pub struct TransactionKernel<Components: BaseDPCComponents> {
     pub new_commitments: Vec<<Components::RecordCommitment as CommitmentScheme>::Output>,
 
     pub new_records_encryption_randomness: Vec<<Components::AccountEncryption as EncryptionScheme>::Randomness>,
-    pub new_encrypted_records: Vec<EncryptedRecord<Components>>,
+    pub new_encrypted_records: Vec<EncryptedRecord>,
     pub new_encrypted_record_hashes: Vec<<Components::EncryptedRecordCRH as CRH>::Output>,
 
     // Program and local data root and randomness
@@ -163,7 +157,7 @@ pub struct TransactionKernel<Components: BaseDPCComponents> {
     pub local_data_commitment_randomizers: Vec<<Components::LocalDataCommitment as CommitmentScheme>::Randomness>,
 
     pub value_balance: AleoAmount,
-    pub memorandum: <Transaction<Components> as TransactionScheme>::Memorandum,
+    pub memorandum: [u8; 32],
     pub network_id: u8,
 }
 
@@ -231,7 +225,7 @@ impl<Components: BaseDPCComponents> ToBytes for TransactionKernel<Components> {
         }
 
         for new_encrypted_record in &self.new_encrypted_records {
-            new_encrypted_record.write(&mut writer)?;
+            new_encrypted_record.write::<Components, _>(&mut writer)?;
         }
 
         for new_encrypted_record_hash in &self.new_encrypted_record_hashes {
@@ -331,7 +325,7 @@ impl<Components: BaseDPCComponents> FromBytes for TransactionKernel<Components> 
 
         let mut new_encrypted_records = vec![];
         for _ in 0..Components::NUM_OUTPUT_RECORDS {
-            let encrypted_record: EncryptedRecord<Components> = FromBytes::read(&mut reader)?;
+            let encrypted_record = EncryptedRecord::read::<Components, _>(&mut reader)?;
             new_encrypted_records.push(encrypted_record);
         }
 
@@ -363,7 +357,7 @@ impl<Components: BaseDPCComponents> FromBytes for TransactionKernel<Components> 
         }
 
         let value_balance: AleoAmount = FromBytes::read(&mut reader)?;
-        let memorandum: <Transaction<Components> as TransactionScheme>::Memorandum = FromBytes::read(&mut reader)?;
+        let memorandum: TransactionHash = FromBytes::read(&mut reader)?;
         let network_id: u8 = FromBytes::read(&mut reader)?;
 
         Ok(Self {
@@ -408,7 +402,7 @@ pub struct LocalData<Components: BaseDPCComponents> {
     pub local_data_merkle_tree: CommitmentMerkleTree<Components::LocalDataCommitment, Components::LocalDataCRH>,
     pub local_data_commitment_randomizers: Vec<<Components::LocalDataCommitment as CommitmentScheme>::Randomness>,
 
-    pub memorandum: <Transaction<Components> as TransactionScheme>::Memorandum,
+    pub memorandum: [u8; 32],
     pub network_id: u8,
 }
 
@@ -561,12 +555,8 @@ impl<Components: BaseDPCComponents> DPC<Components> {
 impl<Components: BaseDPCComponents, L: LedgerScheme> DPCScheme<L> for DPC<Components>
 where
     L: LedgerScheme<
-        Commitment = <Components::RecordCommitment as CommitmentScheme>::Output,
         MerkleParameters = Components::MerkleParameters,
         MerklePath = MerklePath<Components::MerkleParameters>,
-        MerkleTreeDigest = MerkleTreeDigest<Components::MerkleParameters>,
-        SerialNumber = <Components::AccountSignature as SignatureScheme>::PublicKey,
-        Transaction = Transaction<Components>,
     >,
 {
     type Account = Account<Components>;
@@ -576,7 +566,6 @@ where
     type PrivateProgramInput = PrivateProgramInput;
     type Record = Record<Components>;
     type SystemParameters = SystemParameters<Components>;
-    type Transaction = Transaction<Components>;
     type TransactionKernel = TransactionKernel<Components>;
 
     fn setup<R: Rng>(
@@ -656,7 +645,7 @@ where
         new_payloads: Vec<Self::Payload>,
         new_birth_program_ids: Vec<Vec<u8>>,
         new_death_program_ids: Vec<Vec<u8>>,
-        memorandum: <Self::Transaction as TransactionScheme>::Memorandum,
+        memorandum: [u8; 32],
         network_id: u8,
         rng: &mut R,
     ) -> anyhow::Result<Self::TransactionKernel> {
@@ -863,7 +852,7 @@ where
         new_birth_program_proofs: Vec<Self::PrivateProgramInput>,
         ledger: &L,
         rng: &mut R,
-    ) -> anyhow::Result<(Vec<Self::Record>, Self::Transaction)> {
+    ) -> anyhow::Result<(Vec<Self::Record>, Transaction)> {
         assert_eq!(Components::NUM_INPUT_RECORDS, old_death_program_proofs.len());
         assert_eq!(Components::NUM_OUTPUT_RECORDS, new_birth_program_proofs.len());
 
@@ -1002,18 +991,23 @@ where
             Components::InnerSNARK::prove(&inner_snark_parameters, &circuit, rng)?
         };
 
+        let old_serial_numbers_serialized: Vec<TransactionHash> = old_serial_numbers.iter().map(|x| x.to_array()).collect::<Result<_, _>>()?;
+        let new_commitments_serialized: Vec<TransactionHash> = new_commitments.iter().map(|x| x.to_array()).collect::<Result<_, _>>()?;
+        let new_encrypted_record_hashes_serialized: Vec<TransactionHash> = new_encrypted_record_hashes.iter().map(|x| x.to_array()).collect::<Result<_, _>>()?;
+        let signatures_serialized: Vec<TransactionHash> = signatures.iter().map(|x| x.to_array()).collect::<Result<_, _>>()?;
+
         // Verify that the inner proof passes
         {
             let input = InnerCircuitVerifierInput {
                 system_parameters: parameters.system_parameters.clone(),
                 ledger_parameters: ledger.parameters().clone(),
-                ledger_digest: ledger_digest.clone(),
-                old_serial_numbers: old_serial_numbers.clone(),
-                new_commitments: new_commitments.clone(),
-                new_encrypted_record_hashes: new_encrypted_record_hashes.clone(),
+                ledger_digest: ledger_digest.to_array()?,
+                old_serial_numbers: old_serial_numbers_serialized.clone(),
+                new_commitments: new_commitments_serialized.clone(),
+                new_encrypted_record_hashes: new_encrypted_record_hashes_serialized.clone(),
                 memo: memorandum,
-                program_commitment: program_commitment.clone(),
-                local_data_root: local_data_root.clone(),
+                program_commitment: program_commitment.to_array()?,
+                local_data_root: local_data_root.to_array()?,
                 value_balance,
                 network_id,
             };
@@ -1060,18 +1054,18 @@ where
             Components::OuterSNARK::prove(&outer_snark_parameters, &circuit, rng)?
         };
 
-        let transaction = Self::Transaction::new(
-            old_serial_numbers,
-            new_commitments,
+        let transaction = Transaction::new(
+            old_serial_numbers_serialized,
+            new_commitments_serialized,
             memorandum,
-            ledger_digest,
-            inner_circuit_id,
-            transaction_proof,
-            program_commitment,
-            local_data_root,
+            ledger_digest.to_array()?,
+            inner_circuit_id.to_array()?,
+            transaction_proof.to_bytes()?,
+            program_commitment.to_array()?,
+            local_data_root.to_array()?,
             value_balance,
             Network::from_network_id(network_id),
-            signatures,
+            signatures_serialized,
             new_encrypted_records,
         );
 
@@ -1082,19 +1076,19 @@ where
 
     fn verify(
         parameters: &Self::NetworkParameters,
-        transaction: &Self::Transaction,
+        transaction: &Transaction,
         ledger: &L,
     ) -> anyhow::Result<bool> {
         let verify_time = start_timer!(|| "BaseDPC::verify");
 
         // Returns false if there are duplicate serial numbers in the transaction.
-        if has_duplicates(transaction.old_serial_numbers().iter()) {
+        if has_duplicates(transaction.old_serial_numbers.iter()) {
             eprintln!("Transaction contains duplicate serial numbers");
             return Ok(false);
         }
 
         // Returns false if there are duplicate commitments numbers in the transaction.
-        if has_duplicates(transaction.new_commitments().iter()) {
+        if has_duplicates(transaction.new_commitments.iter()) {
             eprintln!("Transaction contains duplicate commitments");
             return Ok(false);
         }
@@ -1102,13 +1096,13 @@ where
         let ledger_time = start_timer!(|| "Ledger checks");
 
         // Returns false if the transaction memo previously existed in the ledger.
-        if ledger.contains_memo(transaction.memorandum()) {
+        if ledger.contains_memo(&transaction.memorandum) {
             eprintln!("Ledger already contains this transaction memo.");
             return Ok(false);
         }
 
         // Returns false if any transaction serial number previously existed in the ledger.
-        for sn in transaction.old_serial_numbers() {
+        for sn in transaction.old_serial_numbers.iter() {
             if ledger.contains_sn(sn) {
                 eprintln!("Ledger already contains this transaction serial number.");
                 return Ok(false);
@@ -1116,7 +1110,7 @@ where
         }
 
         // Returns false if any transaction commitment previously existed in the ledger.
-        for cm in transaction.new_commitments() {
+        for cm in transaction.new_commitments.iter() {
             if ledger.contains_cm(cm) {
                 eprintln!("Ledger already contains this transaction commitment.");
                 return Ok(false);
@@ -1134,19 +1128,19 @@ where
         let signature_time = start_timer!(|| "Signature checks");
 
         let signature_message = &to_bytes![
-            transaction.network_id(),
-            transaction.ledger_digest(),
-            transaction.old_serial_numbers(),
-            transaction.new_commitments(),
-            transaction.program_commitment(),
-            transaction.local_data_root(),
-            transaction.value_balance(),
-            transaction.memorandum()
+            transaction.network.id(),
+            transaction.ledger_digest,
+            transaction.old_serial_numbers,
+            transaction.new_commitments,
+            transaction.program_commitment,
+            transaction.local_data_root,
+            transaction.value_balance,
+            transaction.memorandum
         ]?;
 
         let account_signature = &parameters.system_parameters.account_signature;
-        for (pk, sig) in transaction.old_serial_numbers().iter().zip(&transaction.signatures) {
-            if !Components::AccountSignature::verify(account_signature, pk, signature_message, sig)? {
+        for (pk, sig) in transaction.old_serial_numbers.iter().zip(&transaction.signatures) {
+            if !Components::AccountSignature::verify(account_signature, &CanonicalDeserialize::deserialize_bytes(&pk[..])?, signature_message, &FromBytes::from_bytes(&sig[..])?)? {
                 eprintln!("Signature didn't verify.");
                 return Ok(false);
             }
@@ -1161,21 +1155,21 @@ where
             let encrypted_record_hash =
                 RecordEncryption::encrypted_record_hash(&parameters.system_parameters, encrypted_record)?;
 
-            new_encrypted_record_hashes.push(encrypted_record_hash);
+            new_encrypted_record_hashes.push(encrypted_record_hash.to_array::<32>()?);
         }
 
         let inner_snark_input = InnerCircuitVerifierInput {
             system_parameters: parameters.system_parameters.clone(),
             ledger_parameters: ledger.parameters().clone(),
-            ledger_digest: transaction.ledger_digest().clone(),
-            old_serial_numbers: transaction.old_serial_numbers().to_vec(),
-            new_commitments: transaction.new_commitments().to_vec(),
+            ledger_digest: transaction.ledger_digest,
+            old_serial_numbers: transaction.old_serial_numbers.clone(),
+            new_commitments: transaction.new_commitments.clone(),
             new_encrypted_record_hashes,
-            memo: *transaction.memorandum(),
-            program_commitment: transaction.program_commitment().clone(),
-            local_data_root: transaction.local_data_root().clone(),
-            value_balance: transaction.value_balance(),
-            network_id: transaction.network_id(),
+            memo: transaction.memorandum,
+            program_commitment: transaction.program_commitment,
+            local_data_root: transaction.local_data_root,
+            value_balance: transaction.value_balance,
+            network_id: transaction.network.id(),
         };
 
         let inner_snark_vk: <<Components as BaseDPCComponents>::InnerSNARK as SNARK>::VerifyingKey =
@@ -1194,7 +1188,7 @@ where
         if !Components::OuterSNARK::verify(
             &parameters.outer_snark_parameters.1,
             &outer_snark_input,
-            &transaction.transaction_proof,
+            &FromBytes::from_bytes(&transaction.transaction_proof[..])?,
         )? {
             eprintln!("Transaction proof failed to verify.");
             return Ok(false);
@@ -1208,7 +1202,7 @@ where
     /// Returns true iff all the transactions in the block are valid according to the ledger.
     fn verify_transactions(
         parameters: &Self::NetworkParameters,
-        transactions: &[Self::Transaction],
+        transactions: &[Transaction],
         ledger: &L,
     ) -> anyhow::Result<bool> {
         for transaction in transactions {

@@ -198,7 +198,7 @@ impl<G: Group + ProjectiveCurve, SG: Group + CanonicalSerialize + CanonicalDeser
         public_key: &<Self as EncryptionScheme>::PublicKey,
         randomness: &Self::Randomness,
         message: &[Self::Text],
-    ) -> Result<Vec<Self::Text>, EncryptionError> {
+    ) -> Result<Vec<Vec<u8>>, EncryptionError> {
         let record_view_key = public_key.0.mul(*randomness);
 
         let mut c_0 = G::zero();
@@ -207,7 +207,7 @@ impl<G: Group + ProjectiveCurve, SG: Group + CanonicalSerialize + CanonicalDeser
                 c_0 += base_power;
             }
         }
-        let mut ciphertext = vec![c_0];
+        let mut ciphertext = vec![c_0.to_bytes()?];
 
         let one = Self::Randomness::one();
         let mut i = Self::Randomness::one();
@@ -221,20 +221,20 @@ impl<G: Group + ProjectiveCurve, SG: Group + CanonicalSerialize + CanonicalDeser
             // c_i <- h_i + m_i
             let c_i = h_i + m_i;
 
-            ciphertext.push(c_i);
+            ciphertext.push(c_i.to_bytes()?);
             i += one;
         }
 
         Ok(ciphertext)
     }
 
-    fn decrypt(
+    fn decrypt<B: AsRef<[u8]>>(
         &self,
         private_key: &<Self as EncryptionScheme>::PrivateKey,
-        ciphertext: &[Self::Text],
+        ciphertext: &[B],
     ) -> Result<Vec<Self::Text>, EncryptionError> {
         assert!(!ciphertext.is_empty());
-        let c_0 = &ciphertext[0];
+        let c_0 = Self::Text::from_bytes(ciphertext[0].as_ref())?;
 
         let record_view_key = c_0.mul(*private_key);
 
@@ -256,7 +256,7 @@ impl<G: Group + ProjectiveCurve, SG: Group + CanonicalSerialize + CanonicalDeser
             };
 
             // m_i <- c_i - h_i
-            let m_i = *c_i - h_i;
+            let m_i = Self::Text::from_bytes(c_i.as_ref())? - h_i;
 
             plaintext.push(m_i);
             i += one;

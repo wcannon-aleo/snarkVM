@@ -97,7 +97,7 @@ impl<C: BaseDPCComponents> RecordEncryption<C> {
     ) -> Result<
         (
             <<C as DPCComponents>::AccountEncryption as EncryptionScheme>::Randomness,
-            EncryptedRecord<C>,
+            EncryptedRecord,
         ),
         DPCError,
     > {
@@ -127,7 +127,7 @@ impl<C: BaseDPCComponents> RecordEncryption<C> {
         )?;
 
         let encrypted_record = EncryptedRecord {
-            encrypted_record,
+            ciphertext: encrypted_record,
             final_fq_high_selector,
         };
 
@@ -138,13 +138,13 @@ impl<C: BaseDPCComponents> RecordEncryption<C> {
     pub fn decrypt_record(
         system_parameters: &SystemParameters<C>,
         account_view_key: &AccountViewKey<C>,
-        encrypted_record: &EncryptedRecord<C>,
+        encrypted_record: &EncryptedRecord,
     ) -> Result<Record<C>, DPCError> {
         // Decrypt the encrypted record
         let plaintext_elements = C::AccountEncryption::decrypt(
             &system_parameters.account_encryption,
             &account_view_key.decryption_key,
-            &encrypted_record.encrypted_record,
+            &encrypted_record.ciphertext,
         )?;
 
         let mut plaintext = Vec::with_capacity(plaintext_elements.len());
@@ -219,14 +219,14 @@ impl<C: BaseDPCComponents> RecordEncryption<C> {
     /// The hash input is the ciphertext x-coordinates appended with the selector bits
     pub fn encrypted_record_hash(
         system_parameters: &SystemParameters<C>,
-        encrypted_record: &EncryptedRecord<C>,
+        encrypted_record: &EncryptedRecord,
     ) -> Result<<<C as DPCComponents>::EncryptedRecordCRH as CRH>::Output, DPCError> {
-        let mut ciphertext_affine_x = Vec::with_capacity(encrypted_record.encrypted_record.len());
-        let mut selector_bits = Vec::with_capacity(encrypted_record.encrypted_record.len() + 1);
-        for ciphertext_element in &encrypted_record.encrypted_record {
+        let mut ciphertext_affine_x = Vec::with_capacity(encrypted_record.ciphertext.len());
+        let mut selector_bits = Vec::with_capacity(encrypted_record.ciphertext.len() + 1);
+        for ciphertext_element in &encrypted_record.ciphertext {
             // Compress the ciphertext element to the affine x coordinate
             let ciphertext_element_affine =
-                <C as BaseDPCComponents>::EncryptionGroup::read(&to_bytes![ciphertext_element]?[..])?.into_affine();
+                <C as BaseDPCComponents>::EncryptionGroup::read(&ciphertext_element[..])?.into_affine();
             let ciphertext_x_coordinate = ciphertext_element_affine.to_x_coordinate();
 
             // Fetch the ciphertext selector bit

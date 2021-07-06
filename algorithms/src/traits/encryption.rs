@@ -58,12 +58,12 @@ pub trait EncryptionScheme: Sized + Clone + From<<Self as EncryptionScheme>::Par
         public_key: &<Self as EncryptionScheme>::PublicKey,
         randomness: &Self::Randomness,
         message: &[Self::Text],
-    ) -> Result<Vec<Self::Text>, EncryptionError>;
+    ) -> Result<Vec<Vec<u8>>, EncryptionError>;
 
-    fn decrypt(
+    fn decrypt<B: AsRef<[u8]>>(
         &self,
         private_key: &<Self as EncryptionScheme>::PrivateKey,
-        ciphertext: &[Self::Text],
+        ciphertext: &[B],
     ) -> Result<Vec<Self::Text>, EncryptionError>;
 
     fn parameters(&self) -> &<Self as EncryptionScheme>::Parameters;

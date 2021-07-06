@@ -116,6 +116,10 @@ pub trait CanonicalDeserialize: Sized {
     fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         Self::deserialize(reader)
     }
+    
+    fn deserialize_bytes(mut bytes: &[u8]) -> Result<Self, SerializationError> {
+        Self::deserialize(&mut bytes)
+    }
 }
 
 impl CanonicalSerialize for bool {

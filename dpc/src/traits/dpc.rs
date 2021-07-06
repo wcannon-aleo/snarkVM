@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::traits::{AccountScheme, LedgerScheme, RecordScheme, TransactionScheme};
+use crate::{testnet1::{Transaction, TransactionHash}, traits::{AccountScheme, LedgerScheme, RecordScheme}};
 
 use rand::Rng;
 use std::sync::Arc;
@@ -27,7 +27,6 @@ pub trait DPCScheme<L: LedgerScheme> {
     type PrivateProgramInput;
     type Record: RecordScheme<Owner = <Self::Account as AccountScheme>::AccountAddress>;
     type SystemParameters;
-    type Transaction: TransactionScheme<SerialNumber = <Self::Record as RecordScheme>::SerialNumber>;
     type TransactionKernel;
 
     /// Returns public parameters for the DPC.
@@ -51,7 +50,7 @@ pub trait DPCScheme<L: LedgerScheme> {
         new_payloads: Vec<Self::Payload>,
         new_birth_program_ids: Vec<Vec<u8>>,
         new_death_program_ids: Vec<Vec<u8>>,
-        memorandum: <Self::Transaction as TransactionScheme>::Memorandum,
+        memorandum: TransactionHash,
         network_id: u8,
         rng: &mut R,
     ) -> anyhow::Result<Self::TransactionKernel>;
@@ -65,19 +64,19 @@ pub trait DPCScheme<L: LedgerScheme> {
         new_birth_program_proofs: Vec<Self::PrivateProgramInput>,
         ledger: &L,
         rng: &mut R,
-    ) -> anyhow::Result<(Vec<Self::Record>, Self::Transaction)>;
+    ) -> anyhow::Result<(Vec<Self::Record>, Transaction)>;
 
     /// Returns true iff the transaction is valid according to the ledger.
     fn verify(
         parameters: &Self::NetworkParameters,
-        transaction: &Self::Transaction,
+        transaction: &Transaction,
         ledger: &L,
     ) -> anyhow::Result<bool>;
 
     /// Returns true iff all the transactions in the block are valid according to the ledger.
     fn verify_transactions(
         parameters: &Self::NetworkParameters,
-        block: &[Self::Transaction],
+        block: &[Transaction],
         ledger: &L,
     ) -> anyhow::Result<bool>;
 }

@@ -37,7 +37,7 @@ use std::{
 
 pub type BlockHeight = u32;
 
-pub struct Ledger<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage> {
+pub struct Ledger<P: LoadableMerkleParameters, S: Storage> {
     pub current_block_height: AtomicU32,
     pub ledger_parameters: Arc<P>,
     pub cm_merkle_tree: RwLock<MerkleTree<P>>,
@@ -45,7 +45,7 @@ pub struct Ledger<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage>
     pub _transaction: PhantomData<T>,
 }
 
-impl<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage> Ledger<T, P, S> {
+impl<P: LoadableMerkleParameters, S: Storage> Ledger<P, S> {
     /// Returns true if there are no blocks in the ledger.
     pub fn is_empty(&self) -> bool {
         self.get_latest_block().is_err()
@@ -57,7 +57,7 @@ impl<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage> Ledger<T, P,
     }
 
     /// Get a block given the block hash.
-    pub fn get_block(&self, block_hash: &BlockHeaderHash) -> Result<Block<T>, StorageError> {
+    pub fn get_block(&self, block_hash: &BlockHeaderHash) -> Result<Block, StorageError> {
         Ok(Block {
             header: self.get_block_header(block_hash)?,
             transactions: self.get_block_transactions(block_hash)?,
@@ -65,7 +65,7 @@ impl<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage> Ledger<T, P,
     }
 
     /// Get a block given the block number.
-    pub fn get_block_from_block_number(&self, block_number: u32) -> Result<Block<T>, StorageError> {
+    pub fn get_block_from_block_number(&self, block_number: u32) -> Result<Block, StorageError> {
         if block_number > self.get_current_block_height() {
             return Err(StorageError::BlockError(BlockError::InvalidBlockNumber(block_number)));
         }
@@ -84,7 +84,7 @@ impl<T: TransactionScheme, P: LoadableMerkleParameters, S: Storage> Ledger<T, P,
     }
 
     /// Get the list of transaction ids given a block hash.
-    pub fn get_block_transactions(&self, block_hash: &BlockHeaderHash) -> Result<Transactions<T>, StorageError> {
+    pub fn get_block_transactions(&self, block_hash: &BlockHeaderHash) -> Result<Transactions, StorageError> {
         match self.storage.get(COL_BLOCK_TRANSACTIONS, &block_hash.0)? {
             Some(encoded_block_transactions) => Ok(Transactions::read(&encoded_block_transactions[..])?),
             None => Err(StorageError::MissingBlockTransactions(block_hash.to_string())),

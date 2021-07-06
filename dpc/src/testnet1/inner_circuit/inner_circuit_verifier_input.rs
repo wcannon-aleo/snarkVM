@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::testnet1::{parameters::SystemParameters, AleoAmount, BaseDPCComponents};
+use crate::testnet1::{AleoAmount, BaseDPCComponents, TransactionHash, parameters::SystemParameters};
 use snarkvm_algorithms::{
     merkle_tree::MerkleTreeDigest,
     traits::{CommitmentScheme, EncryptionScheme, MerkleParameters, SignatureScheme, CRH},
@@ -31,20 +31,20 @@ pub struct InnerCircuitVerifierInput<C: BaseDPCComponents> {
 
     // Ledger parameters and digest
     pub ledger_parameters: Arc<C::MerkleParameters>,
-    pub ledger_digest: MerkleTreeDigest<C::MerkleParameters>,
+    pub ledger_digest: TransactionHash,
 
     // Input record serial numbers
-    pub old_serial_numbers: Vec<<C::AccountSignature as SignatureScheme>::PublicKey>,
+    pub old_serial_numbers: Vec<TransactionHash>,
 
     // Output record commitments
-    pub new_commitments: Vec<<C::RecordCommitment as CommitmentScheme>::Output>,
+    pub new_commitments: Vec<TransactionHash>,
 
     // New encrypted record hashes
-    pub new_encrypted_record_hashes: Vec<<C::EncryptedRecordCRH as CRH>::Output>,
+    pub new_encrypted_record_hashes: Vec<TransactionHash>,
 
     // Program input commitment and local data root
-    pub program_commitment: <C::ProgramVerificationKeyCommitment as CommitmentScheme>::Output,
-    pub local_data_root: <C::LocalDataCRH as CRH>::Output,
+    pub program_commitment: TransactionHash,
+    pub local_data_root: TransactionHash,
 
     pub memo: [u8; 32],
     pub value_balance: AleoAmount,

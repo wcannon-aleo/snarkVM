@@ -23,11 +23,31 @@ use crate::{
 pub trait ToBytes {
     /// Serializes `self` into `writer`.
     fn write<W: Write>(&self, writer: W) -> IoResult<()>;
+
+    fn to_bytes(&self) -> IoResult<Vec<u8>> {
+        let mut out = vec![];
+        self.write(&mut out)?;
+        Ok(out)
+    }
+
+    fn to_array<const N: usize>(&self) -> IoResult<[u8; N]> {
+        let mut out = [0u8; N];
+        let mut out_slice = &mut out[..];
+        self.write(&mut out_slice)?; // todo: check for bugs
+        if !out_slice.is_empty() {
+            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "did not receive enough bytes"))
+        }
+        Ok(out)
+    }
 }
 
 pub trait FromBytes: Sized {
     /// Reads `Self` from `reader`.
     fn read<R: Read>(reader: R) -> IoResult<Self>;
+
+    fn from_bytes(mut bytes: &[u8]) -> IoResult<Self> {
+        Self::read(&mut bytes)
+    }
 }
 
 impl<const N: usize> ToBytes for [u8; N] {

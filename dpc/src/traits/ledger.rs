@@ -14,25 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::traits::{BlockScheme, TransactionScheme};
-
 use std::{path::Path, sync::Arc};
+
+use crate::{Block, testnet1::TransactionHash};
 
 #[allow(clippy::len_without_is_empty)]
 pub trait LedgerScheme: Sized {
-    type Block: BlockScheme;
-    type Commitment;
     type MerkleParameters;
     type MerklePath;
-    type MerkleTreeDigest;
-    type SerialNumber;
-    type Transaction: TransactionScheme;
 
     /// Instantiates a new ledger with a genesis block.
     fn new(
         path: Option<&Path>,
         parameters: Arc<Self::MerkleParameters>,
-        genesis_block: Self::Block,
+        genesis_block: Block,
     ) -> anyhow::Result<Self>;
 
     /// Returns the number of blocks including the genesis block
@@ -42,30 +37,30 @@ pub trait LedgerScheme: Sized {
     fn parameters(&self) -> &Arc<Self::MerkleParameters>;
 
     /// Return a digest of the latest ledger Merkle tree.
-    fn digest(&self) -> Option<Self::MerkleTreeDigest>;
+    fn digest(&self) -> Option<TransactionHash>;
 
     /// Check that st_{ts} is a valid digest for some (past) ledger state.
-    fn validate_digest(&self, digest: &Self::MerkleTreeDigest) -> bool;
+    fn validate_digest(&self, digest: &TransactionHash) -> bool;
 
     /// Returns true if the given commitment exists in the ledger.
-    fn contains_cm(&self, cm: &Self::Commitment) -> bool;
+    fn contains_cm(&self, cm: &TransactionHash) -> bool;
 
     /// Returns true if the given serial number exists in the ledger.
-    fn contains_sn(&self, sn: &Self::SerialNumber) -> bool;
+    fn contains_sn(&self, sn: &TransactionHash) -> bool;
 
     /// Returns true if the given memorandum exists in the ledger.
-    fn contains_memo(&self, memo: &<Self::Transaction as TransactionScheme>::Memorandum) -> bool;
+    fn contains_memo(&self, memo: &[u8; 32]) -> bool;
 
     /// Returns the Merkle path to the latest ledger digest
     /// for a given commitment, if it exists in the ledger.
-    fn prove_cm(&self, cm: &Self::Commitment) -> anyhow::Result<Self::MerklePath>;
+    fn prove_cm(&self, cm: &TransactionHash) -> anyhow::Result<Self::MerklePath>;
 
     /// Returns true if the given Merkle path is a valid witness for
     /// the given ledger digest and commitment.
     fn verify_cm(
         parameters: &Arc<Self::MerkleParameters>,
-        digest: &Self::MerkleTreeDigest,
-        cm: &Self::Commitment,
+        digest: &TransactionHash,
+        cm: &TransactionHash,
         witness: &Self::MerklePath,
     ) -> bool;
 }
