@@ -103,8 +103,8 @@ impl DPCComponents for Components {
     type AccountCommitment = PedersenCompressedCommitment<EdwardsBls12, 8, 192>;
     type AccountCommitmentGadget = PedersenCompressedCommitmentGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget, 8, 192>;
     
-    type AccountEncryption = GroupEncryption<EdwardsBls12>;
-    type AccountEncryptionGadget = GroupEncryptionGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget>;
+    type AccountEncryption = GroupEncryption<Self::EncryptionGroup>;
+    type AccountEncryptionGadget = GroupEncryptionGadget<Self::EncryptionGroup, Self::InnerScalarField, Self::EncryptionGroupGadget>;
 
     type AccountSignature = Schnorr<EdwardsBls12>;
     type AccountSignatureGadget = SchnorrGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget>;
