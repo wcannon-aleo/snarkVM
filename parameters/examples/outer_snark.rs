@@ -19,13 +19,13 @@ use snarkvm_algorithms::{
     traits::{MerkleParameters, SNARK},
 };
 use snarkvm_dpc::{
-    testnet1::{
+    testnet2::{
         instantiated::Components,
         InnerCircuit,
         NoopProgram,
         OuterCircuit,
         SystemParameters,
-        Testnet1Components,
+        Testnet2Components as Testnet1Components,
     },
     DPCError,
     ProgramScheme,

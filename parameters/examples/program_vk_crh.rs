@@ -15,7 +15,7 @@
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
 use snarkvm_algorithms::{errors::CRHError, traits::CRH};
-use snarkvm_dpc::{testnet1::instantiated::Components, traits::DPCComponents};
+use snarkvm_dpc::{testnet2::instantiated::Components, traits::DPCComponents};
 use snarkvm_utilities::ToBytes;
 
 use std::path::PathBuf;

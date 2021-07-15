@@ -54,7 +54,7 @@
 #![cfg_attr(feature = "clippy", allow(many_single_char_names))]
 #![cfg_attr(feature = "clippy", allow(new_without_default_derive))]
 
-#[cfg(feature = "testnet1")]
+#[cfg(feature = "testnet2")]
 #[macro_use]
 extern crate snarkvm_profiler;
 
@@ -69,9 +69,6 @@ pub use account::*;
 
 pub mod block;
 pub use block::*;
-
-#[cfg(feature = "testnet1")]
-pub mod testnet1;
 
 #[cfg(feature = "testnet2")]
 pub mod testnet2;

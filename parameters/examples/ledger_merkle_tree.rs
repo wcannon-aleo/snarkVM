@@ -15,7 +15,7 @@
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
 use snarkvm_algorithms::{errors::MerkleError, traits::MerkleParameters};
-use snarkvm_dpc::testnet1::{instantiated::Components, Testnet1Components};
+use snarkvm_dpc::testnet2::{instantiated::Components, Testnet2Components as Testnet1Components};
 use snarkvm_utilities::ToBytes;
 
 use std::path::PathBuf;

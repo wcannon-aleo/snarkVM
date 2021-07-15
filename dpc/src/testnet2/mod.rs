@@ -69,6 +69,50 @@ pub mod instantiated;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// /// Trait that stores information about the testnet1 DPC scheme.
+// pub trait Testnet1Components: DPCComponents {
+//     /// Ledger digest type.
+//     type MerkleParameters: LoadableMerkleParameters;
+//     type MerkleHashGadget: CRHGadget<<Self::MerkleParameters as MerkleParameters>::H, Self::InnerScalarField>;
+//
+//     /// Group and Model Parameters for record encryption
+//     type EncryptionGroup: ProjectiveCurve;
+//     type EncryptionParameters: MontgomeryParameters + TwistedEdwardsParameters;
+//
+//     /// SNARK for non-proof-verification checks
+//     type InnerSNARK: SNARK<
+//         Circuit = InnerCircuit<Self>,
+//         AllocatedCircuit = InnerCircuit<Self>,
+//         VerifierInput = InnerCircuitVerifierInput<Self>,
+//     >;
+//
+//     /// SNARK Verifier gadget for the inner snark
+//     type InnerSNARKGadget: SNARKVerifierGadget<Self::InnerSNARK, Self::OuterScalarField, Input = Vec<Boolean>>;
+//
+//     /// SNARK for proof-verification checks
+//     type OuterSNARK: SNARK<
+//         Circuit = OuterCircuit<Self>,
+//         AllocatedCircuit = OuterCircuit<Self>,
+//         VerifierInput = OuterCircuitVerifierInput<Self>,
+//     >;
+//
+//     /// SNARK for the no-op "always-accept" that does nothing with its input.
+//     type NoopProgramSNARK: SNARK<
+//         Circuit = NoopCircuit<Self>,
+//         AllocatedCircuit = NoopCircuit<Self>,
+//         VerifierInput = ProgramLocalData<Self>,
+//     >;
+//
+//     /// SNARK Verifier gadget for the no-op "always-accept" that does nothing with its input.
+//     type NoopProgramSNARKGadget: SNARKVerifierGadget<
+//         Self::NoopProgramSNARK,
+//         Self::OuterScalarField,
+//         Input = Vec<Boolean>,
+//     >;
+// }
+
+///////////////////////////////////////////////////////////////////////////////
+
 /// Trait that stores information about the testnet2 DPC scheme.
 pub trait Testnet2Components: DPCComponents {
     /// Ledger digest type.
