@@ -111,6 +111,10 @@ impl DPCComponents for Components {
     
     type EncryptedRecordCRH = BoweHopwoodPedersenCompressedCRH<EdwardsBls12, 48, 44>;
     type EncryptedRecordCRHGadget = BoweHopwoodPedersenCompressedCRHGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget, 48, 44>;
+
+    type EncryptionGroup = EdwardsBls12;
+    type EncryptionGroupGadget = EdwardsBls12Gadget;
+    type EncryptionParameters = EdwardsParameters;
     
     type InnerCircuitIDCRH = BoweHopwoodPedersenCompressedCRH<EdwardsBW6, 296, 63>;
     type InnerCircuitIDCRHGadget = BoweHopwoodPedersenCompressedCRHGadget<EdwardsBW6, Self::OuterScalarField, EdwardsBW6Gadget, 296, 63>;
@@ -143,9 +147,6 @@ impl DPCComponents for Components {
 }
 
 impl Testnet2Components for Components {
-    type EncryptionGroup = EdwardsBls12;
-    type EncryptionGroupGadget = EdwardsBls12Gadget;
-    type EncryptionParameters = EdwardsParameters;
     type FiatShamirRng = FiatShamirAlgebraicSpongeRng<
         Self::InnerScalarField,
         Self::OuterScalarField,

@@ -27,13 +27,11 @@ use snarkvm_algorithms::{
     merkle_tree::{MerklePath, MerkleTreeDigest},
     prelude::*,
 };
-use snarkvm_curves::traits::{MontgomeryParameters, ProjectiveCurve, TwistedEdwardsParameters};
 use snarkvm_fields::ToConstraintField;
 use snarkvm_gadgets::{
     bits::Boolean,
     nonnative::NonNativeFieldVar,
     traits::algorithms::{CRHGadget, SNARKVerifierGadget},
-    CompressedGroupGadget,
 };
 use snarkvm_marlin::{
     marlin::{MarlinMode, UniversalSRS},
@@ -118,11 +116,6 @@ pub trait Testnet2Components: DPCComponents {
     /// Ledger digest type.
     type MerkleParameters: LoadableMerkleParameters;
     type MerkleHashGadget: CRHGadget<<Self::MerkleParameters as MerkleParameters>::H, Self::InnerScalarField>;
-
-    /// Group and Model Parameters for record encryption
-    type EncryptionGroup: ProjectiveCurve;
-    type EncryptionGroupGadget: CompressedGroupGadget<Self::EncryptionGroup, Self::InnerScalarField>;
-    type EncryptionParameters: MontgomeryParameters + TwistedEdwardsParameters;
 
     /// SNARK for non-proof-verification checks
     type InnerSNARK: SNARK<

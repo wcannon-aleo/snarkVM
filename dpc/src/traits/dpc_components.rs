@@ -15,9 +15,12 @@
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
 use snarkvm_algorithms::traits::{CommitmentScheme, EncryptionScheme, SignatureScheme, CRH, PRF};
-use snarkvm_curves::PairingEngine;
+use snarkvm_curves::{MontgomeryParameters, PairingEngine, ProjectiveCurve, TwistedEdwardsParameters};
 use snarkvm_fields::{PrimeField, ToConstraintField};
-use snarkvm_gadgets::traits::algorithms::{CRHGadget, CommitmentGadget, EncryptionGadget, PRFGadget, SignatureGadget};
+use snarkvm_gadgets::{
+    traits::algorithms::{CRHGadget, CommitmentGadget, EncryptionGadget, PRFGadget, SignatureGadget},
+    CompressedGroupGadget,
+};
 
 pub trait DPCComponents: 'static + Sized {
     const NETWORK_ID: u8;
@@ -48,6 +51,11 @@ pub trait DPCComponents: 'static + Sized {
     type EncryptedRecordCRH: CRH + ToConstraintField<Self::InnerScalarField>;
     type EncryptedRecordCRHGadget: CRHGadget<Self::EncryptedRecordCRH, Self::InnerScalarField>;
 
+    /// Group and Model Parameters for record encryption
+    type EncryptionGroup: ProjectiveCurve;
+    type EncryptionGroupGadget: CompressedGroupGadget<Self::EncryptionGroup, Self::InnerScalarField>;
+    type EncryptionParameters: MontgomeryParameters + TwistedEdwardsParameters;
+
     /// CRH for hash of the `Self::InnerSNARK` verification keys.
     /// This is invoked only on the larger curve.
     type InnerCircuitIDCRH: CRH;
@@ -57,6 +65,7 @@ pub trait DPCComponents: 'static + Sized {
     /// `Self::InnerSNARK` and every program SNARK.
     type LocalDataCRH: CRH + ToConstraintField<Self::InnerScalarField>;
     type LocalDataCRHGadget: CRHGadget<Self::LocalDataCRH, Self::InnerScalarField>;
+
     type LocalDataCommitment: CommitmentScheme + ToConstraintField<Self::InnerScalarField>;
     type LocalDataCommitmentGadget: CommitmentGadget<Self::LocalDataCommitment, Self::InnerScalarField>;
 
